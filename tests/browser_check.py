@@ -65,7 +65,7 @@ def check():
         dashboard_image = page.locator('#figure-dashboard-dev104 .screenshot-link')
         dashboard_image.click()
         assert page.locator('#imageViewer').evaluate('(node) => node.open')
-        assert page.locator('#imageViewerCaption').inner_text().startswith('Интерфейс dev.104')
+        assert page.locator('#imageViewerCaption').inner_text().startswith('Главная страница остановленного прибора.')
         assert page.locator('#imageViewerImage').get_attribute('src').endswith('dashboard-dev104.png')
         page.locator('#imageActualSize').click()
         assert page.locator('#imageActualSize').get_attribute('aria-pressed') == 'true'
@@ -81,7 +81,8 @@ def check():
         page.screenshot(path=str(RESULTS / 'desktop-illustrated-dashboard.png'), full_page=True)
         page.goto(url + '#self-reflux')
         page.locator('#figure-plateau-trial .screenshot-link').click()
-        assert 'прежний интерфейс' in page.locator('#imageViewerCaption').inner_text()
+        assert page.locator('#imageViewerCaption').inner_text().startswith('Кнопка «Начать работу на себя»')
+        assert page.locator('.shot-badge, .legacy-note').count() == 0
         assert page.locator('#imageViewerCount').inner_text() == '1 / 3'
         page.locator('#imageNext').click()
         assert page.locator('#imageViewerImage').get_attribute('src').endswith('reflux-running-trial.png')

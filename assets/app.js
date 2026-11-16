@@ -36,9 +36,8 @@
     const figure = link.closest('figure');
     const title = figure.querySelector('.shot-title')?.textContent || source.alt;
     const description = figure.querySelector('.shot-caption')?.textContent || figure.querySelector('figcaption')?.textContent || '';
-    const badge = figure.querySelector('.shot-badge')?.textContent;
     $('imageViewerTitle').textContent = title;
-    $('imageViewerCaption').textContent = (badge ? badge + '. ' : '') + description;
+    $('imageViewerCaption').textContent = description;
     const image = $('imageViewerImage');
     image.alt = title;
     image.style.setProperty('--native-width', (source.naturalWidth || source.width) + 'px');

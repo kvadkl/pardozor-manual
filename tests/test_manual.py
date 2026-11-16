@@ -129,8 +129,11 @@ class ManualTests(unittest.TestCase):
             self.assertEqual(struct.unpack('>II', data[16:24]), (item['width'], item['height']))
             self.assertIn('figure-' + item['key'], self.document.ids)
             self.assertIn(item['caption'], self.html)
-            if item['legacy']:
-                self.assertIn('прежний интерфейс', self.html)
+
+    def test_no_screenshot_version_or_trial_disclaimers(self):
+        self.assertNotIn('class="shot-badge', self.html)
+        self.assertNotIn('class="legacy-note', self.html)
+        self.assertNotRegex(self.html, r'(?i)прежний интерфейс|прежней версии|пример испытаний|в старом испытании|подписи на старом снимке')
 
 
 if __name__ == '__main__':
