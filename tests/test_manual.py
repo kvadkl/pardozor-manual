@@ -11,6 +11,7 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src.chapters import CHAPTERS, VERSION
+from src.illustrations import ILLUSTRATIONS
 
 
 class Document(HTMLParser):
@@ -66,7 +67,7 @@ class ManualTests(unittest.TestCase):
             src = attrs.get('src')
             self.assertTrue(src)
             self.assertFalse(src.startswith('/'), src)
-            self.assertTrue((ROOT / src).is_file(), src)
+            self.assertTrue((ROOT / urlsplit(src).path).is_file(), src)
         for href in self.document.links:
             parts = urlsplit(href)
             if not parts.scheme and parts.path:
@@ -116,6 +117,20 @@ class ManualTests(unittest.TestCase):
         first = (ROOT / 'index.html').read_bytes()
         subprocess.run([sys.executable, 'build.py'], cwd=ROOT, check=True, capture_output=True)
         self.assertEqual(first, (ROOT / 'index.html').read_bytes())
+
+    def test_original_screenshots_have_correct_dimensions_and_captions(self):
+        import struct
+        self.assertEqual(len(ILLUSTRATIONS), 17)
+        self.assertEqual(len({item['key'] for item in ILLUSTRATIONS}), 17)
+        for item in ILLUSTRATIONS:
+            path = ROOT / 'assets/screenshots' / (item['key'] + '.png')
+            data = path.read_bytes()
+            self.assertEqual(data[:8], b'\x89PNG\r\n\x1a\n')
+            self.assertEqual(struct.unpack('>II', data[16:24]), (item['width'], item['height']))
+            self.assertIn('figure-' + item['key'], self.document.ids)
+            self.assertIn(item['caption'], self.html)
+            if item['legacy']:
+                self.assertIn('прежний интерфейс', self.html)
 
 
 if __name__ == '__main__':

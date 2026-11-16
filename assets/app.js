@@ -17,6 +17,64 @@
   let toastTimer;
   let searchTimer;
   const mobile = window.matchMedia('(max-width: 900px)');
+  const viewer = $('imageViewer');
+  const imageLinks = [...document.querySelectorAll('.prose figure a')].filter(link => link.querySelector('img'));
+  let imageGallery = [];
+  let imageIndex = 0;
+
+  function actualSize(enabled) {
+    viewer.classList.toggle('actual-size', enabled);
+    $('imageActualSize').setAttribute('aria-pressed', String(enabled));
+    $('imageActualSize').textContent = enabled ? 'Вписать' : '100%';
+    $('imageViewerStage').scrollTo(0, 0);
+  }
+
+  function displayImage(index) {
+    imageIndex = (index + imageGallery.length) % imageGallery.length;
+    const link = imageGallery[imageIndex];
+    const source = link.querySelector('img');
+    const figure = link.closest('figure');
+    const title = figure.querySelector('.shot-title')?.textContent || source.alt;
+    const description = figure.querySelector('.shot-caption')?.textContent || figure.querySelector('figcaption')?.textContent || '';
+    const badge = figure.querySelector('.shot-badge')?.textContent;
+    $('imageViewerTitle').textContent = title;
+    $('imageViewerCaption').textContent = (badge ? badge + '. ' : '') + description;
+    const image = $('imageViewerImage');
+    image.alt = title;
+    image.style.setProperty('--native-width', (source.naturalWidth || source.width) + 'px');
+    image.src = link.href;
+    $('imageOriginal').href = link.href;
+    $('imageViewerCount').textContent = `${imageIndex + 1} / ${imageGallery.length}`;
+    $('imagePrevious').disabled = imageGallery.length < 2;
+    $('imageNext').disabled = imageGallery.length < 2;
+    actualSize(false);
+  }
+
+  for (const link of imageLinks) {
+    link.addEventListener('click', event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || !viewer.showModal) return;
+      event.preventDefault();
+      imageGallery = imageLinks.filter(item => item.closest('.chapter') === link.closest('.chapter'));
+      displayImage(imageGallery.indexOf(link));
+      viewer.showModal();
+      document.body.classList.add('image-open');
+      $('imageViewerClose').focus();
+    });
+  }
+  $('imageViewerImage').addEventListener('load', () => {
+    $('imageViewerImage').style.setProperty('--native-width', $('imageViewerImage').naturalWidth + 'px');
+  });
+  $('imageActualSize').addEventListener('click', () => actualSize(!viewer.classList.contains('actual-size')));
+  $('imageViewerImage').addEventListener('click', () => actualSize(!viewer.classList.contains('actual-size')));
+  $('imageViewerClose').addEventListener('click', () => viewer.close());
+  $('imagePrevious').addEventListener('click', () => displayImage(imageIndex - 1));
+  $('imageNext').addEventListener('click', () => displayImage(imageIndex + 1));
+  viewer.addEventListener('close', () => { document.body.classList.remove('image-open'); actualSize(false); });
+  viewer.addEventListener('click', event => {
+    if (event.target !== viewer) return;
+    const rect = viewer.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) viewer.close();
+  });
 
   function drawer(open) {
     document.body.classList.toggle('drawer-open', open);
@@ -157,9 +215,20 @@
     } catch { toast('Не удалось скопировать. Скопируйте адрес из строки браузера.'); }
   }
 
-  function print(all) {
+  async function print(all) {
     if (!all && !searchPanel.hidden) route(false);
     document.body.dataset.print = all ? 'all' : 'chapter';
+    const images = [...(all ? document : current).querySelectorAll('.prose img')];
+    for (const image of images) image.loading = 'eager';
+    const ready = await Promise.race([
+      Promise.all(images.map(image => image.decode().then(() => true, () => false))),
+      new Promise(resolve => setTimeout(() => resolve(null), 12000)),
+    ]);
+    if (!ready || ready.some(value => !value)) {
+      delete document.body.dataset.print;
+      toast('Не все иллюстрации загрузились. Проверьте связь и повторите печать.');
+      return;
+    }
     window.print();
   }
 
@@ -183,6 +252,13 @@
     }
   });
   document.addEventListener('keydown', event => {
+    if (viewer.open) {
+      if (!viewer.classList.contains('actual-size') && ['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        event.preventDefault();
+        displayImage(imageIndex + (event.key === 'ArrowRight' ? 1 : -1));
+      }
+      return; // Escape and Tab are handled by the native modal dialog.
+    }
     const typing = event.target.matches('input,textarea,select,[contenteditable=true]');
     if ((event.key === '/' && !typing) || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) {
       event.preventDefault();

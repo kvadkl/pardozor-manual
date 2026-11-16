@@ -61,6 +61,33 @@ def check():
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), chapter['id']
             checks += 4
 
+        page.goto(url + '#dashboard')
+        dashboard_image = page.locator('#figure-dashboard-dev104 .screenshot-link')
+        dashboard_image.click()
+        assert page.locator('#imageViewer').evaluate('(node) => node.open')
+        assert page.locator('#imageViewerCaption').inner_text().startswith('Интерфейс dev.104')
+        assert page.locator('#imageViewerImage').get_attribute('src').endswith('dashboard-dev104.png')
+        page.locator('#imageActualSize').click()
+        assert page.locator('#imageActualSize').get_attribute('aria-pressed') == 'true'
+        assert page.locator('#imageViewerImage').evaluate('(node) => node.getBoundingClientRect().width') == 1448
+        page.screenshot(path=str(RESULTS / 'desktop-image-100-percent.png'))
+        page.locator('#imageActualSize').click()
+        page.keyboard.press('ArrowRight')
+        assert page.locator('#imageViewerImage').get_attribute('src').endswith('navigation-dev104.png')
+        page.keyboard.press('Escape')
+        assert not page.locator('#imageViewer').evaluate('(node) => node.open')
+        assert not page.locator('body').evaluate('(node) => node.classList.contains("image-open")')
+        assert dashboard_image.evaluate('(node) => node === document.activeElement')
+        page.screenshot(path=str(RESULTS / 'desktop-illustrated-dashboard.png'), full_page=True)
+        page.goto(url + '#self-reflux')
+        page.locator('#figure-plateau-trial .screenshot-link').click()
+        assert 'прежний интерфейс' in page.locator('#imageViewerCaption').inner_text()
+        assert page.locator('#imageViewerCount').inner_text() == '1 / 3'
+        page.locator('#imageNext').click()
+        assert page.locator('#imageViewerImage').get_attribute('src').endswith('reflux-running-trial.png')
+        page.locator('#imageViewerClose').click()
+        checks += 12
+
         page.goto(url + '#pwm')
         page.locator('.chapter:visible .chapter-outline').evaluate('(node) => node.open = true')
         heading_link = page.locator('.chapter:visible .chapter-outline a').nth(1)
@@ -91,20 +118,24 @@ def check():
         page.goto(url + '#history')
         page.evaluate('window.print = () => { window.printCalls = (window.printCalls || 0) + 1; }')
         page.locator('#printAll').click()
+        page.wait_for_function('window.printCalls >= 1')
         assert page.evaluate('document.body.dataset.print') == 'all'
         page.emulate_media(media='print')
         assert page.locator('article:visible').count() == 33
         assert page.locator('.print-cover').is_visible()
+        assert page.locator('.screenshot img').evaluate_all('(images) => images.length === 17 && images.every(image => image.complete && image.naturalWidth > 0)')
+        assert not page.locator('#imageViewer').is_visible()
         page.pdf(path=str(RESULTS / 'full-manual.pdf'), prefer_css_page_size=True, print_background=True)
         page.evaluate("window.dispatchEvent(new Event('afterprint'))")
         page.emulate_media(media='screen')
         page.locator('#printChapter').click()
+        page.wait_for_function('window.printCalls >= 2')
         page.emulate_media(media='print')
         assert page.locator('article:visible').count() == 1
         assert not page.locator('.print-cover').is_visible()
         page.evaluate("window.dispatchEvent(new Event('afterprint'))")
         page.emulate_media(media='screen')
-        checks += 8
+        checks += 10
 
         page.goto(url + '#not-a-real-chapter')
         assert page.locator('article:visible').get_attribute('id') == 'overview'
@@ -137,6 +168,17 @@ def check():
             page.keyboard.press('Escape')
             assert page.locator('#menuToggle').get_attribute('aria-expanded') == 'false'
             checks += 1
+            page.goto(url + '#sensors')
+            page.locator('#figure-channel-dev104 .screenshot-link').click()
+            assert page.locator('#imageViewer').is_visible()
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+            page.locator('#imageActualSize').click()
+            assert page.locator('#imageViewerImage').evaluate('(node) => node.getBoundingClientRect().width') == 550
+            assert page.locator('#imageViewerStage').evaluate('(node) => node.scrollHeight > node.clientHeight')
+            page.screenshot(path=str(RESULTS / f'mobile-{width}-image-viewer.png'))
+            page.locator('#imageViewerClose').click()
+            assert page.locator('#figure-channel-dev104 .screenshot-link').evaluate('(node) => node === document.activeElement')
+            checks += 5
 
         fallback = browser.new_context(java_script_enabled=False, viewport={'width': 390, 'height': 844})
         nojs = fallback.new_page()
@@ -144,7 +186,9 @@ def check():
         assert nojs.locator('article:visible').count() == 33
         assert nojs.locator('nav[aria-label="Оглавление"]').is_visible()
         assert nojs.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        checks += 3
+        assert nojs.locator('.screenshot-link').count() == 17
+        assert nojs.locator('#figure-channel-dev104 a').get_attribute('target') == '_blank'
+        checks += 5
         assert not errors, errors
         assert not failed, failed
         # The installed antivirus injects its own monitoring script into Chrome.

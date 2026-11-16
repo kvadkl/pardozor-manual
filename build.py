@@ -2,13 +2,19 @@
 
 from collections import OrderedDict
 from html import escape
+from hashlib import sha256
 from pathlib import Path
 import re
 
 from src.chapters import CHAPTERS, UPDATED, VERSION
+from src.illustrations import illustrated_body
 
 ROOT = Path(__file__).resolve().parent
 SITE = "https://kvadkl.github.io/pardozor-manual/"
+
+
+def asset_url(path):
+    return path + '?v=' + sha256((ROOT / path).read_bytes()).hexdigest()[:10]
 
 
 def icon(name):
@@ -46,7 +52,7 @@ def render():
             headings.append((id, re.sub(r"<[^>]+>", "", label)))
             return f'<h{level} id="{id}" tabindex="-1">{label}</h{level}>'
 
-        body = re.sub(r'<h([23])>(.*?)</h\1>', heading, item["body"], flags=re.S)
+        body = re.sub(r'<h([23])>(.*?)</h\1>', heading, illustrated_body(item), flags=re.S)
         outline = '<details class="chapter-outline"><summary>В этой главе</summary><ul>' + ''.join(
             f'<li><a href="#{id}">{label}</a></li>' for id, label in headings
         ) + '</ul></details>'
@@ -76,7 +82,7 @@ def render():
 <meta property="og:title" content="ПарДозор — руководство пользователя"><meta property="og:description" content="От первого включения до настройки ШИМ и разбора журнала. Полная инструкция по работе с прибором.">
 <meta property="og:url" content="{SITE}"><meta property="og:image" content="{SITE}assets/controller.jpg">
 <link rel="canonical" href="{SITE}"><link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="assets/style.css"><script src="assets/app.js" defer></script>
+<link rel="stylesheet" href="{asset_url('assets/style.css')}"><script src="{asset_url('assets/app.js')}" defer></script>
 </head><body>
 <a class="skip-link" href="#content">К содержанию главы</a>
 <aside class="sidebar" id="sidebar" aria-label="Навигация по инструкции">
@@ -98,6 +104,7 @@ def render():
 </main>
 <footer class="page-footer"><div><strong>ПарДозор · Руководство пользователя</strong><span>Проверено по прошивке {VERSION} · {UPDATED}</span></div><a href="#reference">Краткая памятка {icon('arrow')}</a></footer>
 </div><div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog class="image-viewer" id="imageViewer" aria-labelledby="imageViewerTitle" aria-describedby="imageViewerCaption"><div class="viewer-toolbar"><p id="imageViewerTitle"></p><div class="viewer-actions"><button type="button" id="imageActualSize" aria-pressed="false">100%</button><a id="imageOriginal" href="assets/controller.jpg" target="_blank" rel="noopener">Оригинал ↗</a><button type="button" id="imageViewerClose" aria-label="Закрыть изображение">Закрыть ×</button></div></div><div id="imageViewerStage" class="viewer-stage" tabindex="0" aria-label="Изображение. В режиме 100% его можно прокручивать."><img id="imageViewerImage" src="assets/controller.jpg" width="800" height="600" alt=""></div><p id="imageViewerCaption"></p><div class="viewer-navigation"><button type="button" id="imagePrevious">← Предыдущее</button><span id="imageViewerCount" role="status" aria-live="polite"></span><button type="button" id="imageNext">Следующее →</button></div></dialog>
 </body></html>'''
     (ROOT / 'index.html').write_text(html, encoding='utf-8', newline='\n')
     print(f'Built index.html: {len(chapters)} chapters, {len(html.encode("utf-8")):,} bytes')
